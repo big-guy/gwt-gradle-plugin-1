@@ -56,7 +56,7 @@ public class GwtCheckTask extends AbstractTask {
 		CompilerOption compilerOptions = extension.getCompile();
 		CompileCommandBuilder commandBuilder = new CompileCommandBuilder();
 		commandBuilder.addArg("-validateOnly");
-		commandBuilder.configure(getProject(), compilerOptions, getSrc(), null, getModules());
+		commandBuilder.configure(compilerOptions, getSrc(), null, getModules());
 		JavaAction compileAction = commandBuilder.buildJavaAction();
 		compileAction.execute(this);
 		compileAction.join();
@@ -67,8 +67,6 @@ public class GwtCheckTask extends AbstractTask {
 
 	public void configure(final Project project, final GwtExtension extention) {
 		final CompilerOption options = extention.getCompile();
-
-		options.init(getProject());
 
 		JavaPluginConvention javaConvention = project.getConvention().getPlugin(JavaPluginConvention.class);
 		SourceSet mainSourceSet = javaConvention.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);

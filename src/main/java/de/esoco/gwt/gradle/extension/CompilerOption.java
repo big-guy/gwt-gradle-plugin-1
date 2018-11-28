@@ -21,12 +21,24 @@ import java.util.List;
 import org.gradle.api.Project;
 
 import com.google.common.collect.Lists;
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.Directory;
+import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.Classpath;
+import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.LocalState;
+import org.gradle.api.tasks.OutputDirectory;
+
+import javax.inject.Inject;
 
 /**
  * GWT Compiler options.
  */
 public class CompilerOption extends JavaOption {
-
 	/**
 	 * The compiler's working directory for internal use (must be writeable; defaults to a system
 	 * buil/work).
@@ -35,7 +47,8 @@ public class CompilerOption extends JavaOption {
 	/**
 	 * The directory into which deployable output files will be written.
 	 */
-	private File war;
+	private final DirectoryProperty war;
+
 	/**
 	 * The directory into which deployable but not servable output files will be written (defaults to
 	 * 'WEB-INF/deploy' under the -war directory/jar, and may be the same as the -extra
@@ -156,6 +169,10 @@ public class CompilerOption extends JavaOption {
 	 */
 	private final List<String> extraArgs = Lists.newArrayList();
 
+	private final ConfigurableFileCollection gwtSdkClasspath;
+	private final ConfigurableFileCollection compileClasspath;
+
+	@Internal("changes to log level do not effect output")
 	public LogLevel getLogLevel() {
 		return logLevel;
 	}
@@ -168,6 +185,7 @@ public class CompilerOption extends JavaOption {
 		this.logLevel = LogLevel.valueOf(logLevel);
 	}
 
+	@Input
 	public Boolean getStrict() {
 		return strict;
 	}
@@ -180,6 +198,7 @@ public class CompilerOption extends JavaOption {
 		this.strict = Boolean.valueOf(strict);
 	}
 
+	@Internal
 	public File getWorkDir() {
 		return workDir;
 	}
@@ -192,6 +211,7 @@ public class CompilerOption extends JavaOption {
 		this.workDir = new File(workDir);
 	}
 
+	@Input
 	public Boolean getCompileReport() {
 		return compileReport;
 	}
@@ -204,6 +224,7 @@ public class CompilerOption extends JavaOption {
 		this.compileReport = Boolean.parseBoolean(compileReport);
 	}
 
+	@Input
 	public Boolean getDraftCompile() {
 		return draftCompile;
 	}
@@ -216,6 +237,7 @@ public class CompilerOption extends JavaOption {
 		this.draftCompile = Boolean.parseBoolean(draftCompile);
 	}
 
+	@Input
 	public Boolean getCheckAssertions() {
 		return checkAssertions;
 	}
@@ -228,6 +250,8 @@ public class CompilerOption extends JavaOption {
 		this.checkAssertions = Boolean.valueOf(checkAssertions);
 	}
 
+	// Maybe local state for debugging
+	@Internal
 	public File getGen() {
 		return gen;
 	}
@@ -240,6 +264,8 @@ public class CompilerOption extends JavaOption {
 		this.gen = new File(gen);
 	}
 
+	// TODO:
+	@Internal("unused?")
 	public File getMissingDepsFile() {
 		return missingDepsFile;
 	}
@@ -248,6 +274,7 @@ public class CompilerOption extends JavaOption {
 		this.missingDepsFile = new File(missingDepsFile);
 	}
 
+	@Input
 	public Integer getOptimize() {
 		return optimize;
 	}
@@ -260,6 +287,7 @@ public class CompilerOption extends JavaOption {
 		this.optimize = Integer.valueOf(optimize);
 	}
 
+	@Input
 	public Boolean getOverlappingSourceWarnings() {
 		return overlappingSourceWarnings;
 	}
@@ -268,6 +296,7 @@ public class CompilerOption extends JavaOption {
 		this.overlappingSourceWarnings = overlappingSourceWarnings;
 	}
 
+	@Input
 	public Boolean getSaveSource() {
 		return saveSource;
 	}
@@ -280,6 +309,7 @@ public class CompilerOption extends JavaOption {
 		this.saveSource = Boolean.parseBoolean(saveSource);
 	}
 
+	@Input
 	public CodeStyle getStyle() {
 		return style;
 	}
@@ -292,6 +322,7 @@ public class CompilerOption extends JavaOption {
 		this.style = CodeStyle.valueOf(style);
 	}
 
+	@Input
 	public Boolean getFailOnError() {
 		return failOnError;
 	}
@@ -304,6 +335,7 @@ public class CompilerOption extends JavaOption {
 		this.failOnError = Boolean.parseBoolean(failOnError);
 	}
 
+	@Input
 	public String getSourceLevel() {
 		return sourceLevel;
 	}
@@ -312,6 +344,7 @@ public class CompilerOption extends JavaOption {
 		this.sourceLevel = sourceLevel;
 	}
 
+	@Internal("changing the number of local workers does not effect the output")
 	public Integer getLocalWorkers() {
 		return localWorkers;
 	}
@@ -324,6 +357,7 @@ public class CompilerOption extends JavaOption {
 		this.localWorkers = Integer.valueOf(localWorkers);
 	}
 
+	@Internal("changing the number of local workers does not effect the output")
 	public Integer getLocalWorkersMem() {
 		return localWorkersMem;
 	}
@@ -336,6 +370,7 @@ public class CompilerOption extends JavaOption {
 		this.localWorkersMem = Integer.valueOf(localWorkersMem);
 	}
 
+	@Input
 	public Boolean getIncremental() {
 		return incremental;
 	}
@@ -348,14 +383,13 @@ public class CompilerOption extends JavaOption {
 		this.incremental = Boolean.parseBoolean(incremental);
 	}
 
-	public File getWar() {
+	// TODO: This needs to be used by the task as the output directory
+	@Internal
+	public DirectoryProperty getWar() {
 		return war;
 	}
 
-	public void setWar(String war) {
-		this.war = new File(war);
-	}
-
+	@Internal
 	public File getDeploy() {
 		return deploy;
 	}
@@ -364,6 +398,7 @@ public class CompilerOption extends JavaOption {
 		this.deploy = new File(deploy);
 	}
 
+	@Internal
 	public File getExtra() {
 		return extra;
 	}
@@ -372,6 +407,7 @@ public class CompilerOption extends JavaOption {
 		this.extra = new File(extra);
 	}
 
+	@Internal
 	public File getSaveSourceOutput() {
 		return saveSourceOutput;
 	}
@@ -380,6 +416,7 @@ public class CompilerOption extends JavaOption {
 		this.saveSourceOutput = new File(saveSourceOutput);
 	}
 
+	@Input
 	public MethodNameDisplayMode getMethodNameDisplayMode() {
 		return methodNameDisplayMode;
 	}
@@ -392,6 +429,7 @@ public class CompilerOption extends JavaOption {
 		this.methodNameDisplayMode = MethodNameDisplayMode.valueOf(methodNameDisplayMode);
 	}
 
+	@Input
 	public Boolean getEnforceStrictResources() {
 		return enforceStrictResources;
 	}
@@ -404,6 +442,7 @@ public class CompilerOption extends JavaOption {
 		this.enforceStrictResources = Boolean.parseBoolean(enforceStrictResources);
 	}
 
+	@Input
 	public Boolean getCheckCasts() {
 		return checkCasts;
 	}
@@ -416,6 +455,7 @@ public class CompilerOption extends JavaOption {
 		this.checkCasts = Boolean.parseBoolean(checkCasts);
 	}
 
+	@Input
 	public Boolean getClassMetadata() {
 		return classMetadata;
 	}
@@ -428,6 +468,7 @@ public class CompilerOption extends JavaOption {
 		this.classMetadata = Boolean.parseBoolean(classMetadata);
 	}
 
+	@Input
 	public JsInteropMode getJsInteropMode() {
 		return jsInteropMode;
 	}
@@ -440,6 +481,7 @@ public class CompilerOption extends JavaOption {
 		this.jsInteropMode = jsInteropMode;
 	}
 
+	@Input
 	public boolean getGenerateJsInteropExports() {
 		return generateJsInteropExports;
 	}
@@ -455,6 +497,7 @@ public class CompilerOption extends JavaOption {
 		this.generateJsInteropExports = Boolean.parseBoolean(generateJsInteropExports);
 	}
 
+	@Input
 	public List<String> getIncludeJsInteropExports() {
 		return includeJsInteropExports;
 	}
@@ -463,6 +506,7 @@ public class CompilerOption extends JavaOption {
 		this.includeJsInteropExports.addAll(Arrays.asList(imports));
 	}
 
+	@Input
 	public List<String> getExcludeJsInteropExports() {
 		return excludeJsInteropExports;
 	}
@@ -470,7 +514,8 @@ public class CompilerOption extends JavaOption {
 	public void setExcludeJsInteropExports(String... imports) {
 		this.excludeJsInteropExports.addAll(Arrays.asList(imports));
 	}
-	
+
+	@Input
 	public List<String> getExtraArgs() {
 		return extraArgs;
 	}
@@ -478,11 +523,19 @@ public class CompilerOption extends JavaOption {
 	public void setExtraArgs(String... extraArgs) {
 		this.extraArgs.addAll(Arrays.asList(extraArgs));
 	}
-	
-	public void init(Project project) {
-		final File buildDir = new File(project.getBuildDir(), GwtExtension.DIRECTORY);
 
-		this.war = new File(buildDir, "out");
+	@Inject
+	public CompilerOption(ObjectFactory objectFactory, ProjectLayout projectLayout) {
+		this.war = objectFactory.directoryProperty();
+		this.gwtSdkClasspath = projectLayout.configurableFiles();
+		this.compileClasspath = projectLayout.configurableFiles();
+
+		final DirectoryProperty buildDirectory = objectFactory.directoryProperty();
+		buildDirectory.set(projectLayout.getBuildDirectory().dir(GwtExtension.DIRECTORY));
+
+		this.war.set(buildDirectory.dir("out"));
+
+		File buildDir = buildDirectory.get().getAsFile();
 		this.workDir = new File(buildDir, "work");
 		this.gen = new File(buildDir, "extra/gen");
 		this.deploy = new File(buildDir, "extra/deploy");
@@ -491,4 +544,13 @@ public class CompilerOption extends JavaOption {
 		this.missingDepsFile = new File(buildDir, "extra/missingDepsFile");
 	}
 
+	@Classpath
+	public ConfigurableFileCollection getCompileClasspath() {
+		return compileClasspath;
+	}
+
+	@Classpath
+	public ConfigurableFileCollection getGwtSdkClasspath() {
+		return gwtSdkClasspath;
+	}
 }

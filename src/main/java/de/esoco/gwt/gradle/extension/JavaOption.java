@@ -15,6 +15,8 @@
 package de.esoco.gwt.gradle.extension;
 
 import com.google.common.collect.Lists;
+import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Internal;
 
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +32,7 @@ public class JavaOption {
 	private int debugPort = 8000;
 	private boolean debugSuspend = false;
 
+	@Input
 	public List<String> getJavaArgs() {
 		return javaArgs;
 	}
@@ -38,6 +41,7 @@ public class JavaOption {
 		this.javaArgs.addAll(Arrays.asList(javaArgs));
 	}
 
+	@Internal("changes to max heap size does not effect output")
 	public String getMaxHeapSize() {
 		return maxHeapSize;
 	}
@@ -46,6 +50,7 @@ public class JavaOption {
 		this.maxHeapSize = maxHeapSize;
 	}
 
+	@Internal("changes to min heap size does not effect output")
 	public String getMinHeapSize() {
 		return minHeapSize;
 	}
@@ -54,6 +59,7 @@ public class JavaOption {
 		this.minHeapSize = minHeapSize;
 	}
 
+	@Internal("changes to perm size does not effect output")
 	public String getMaxPermSize() {
 		return maxPermSize;
 	}
@@ -62,6 +68,7 @@ public class JavaOption {
 		this.maxPermSize = maxPermSize;
 	}
 
+	@Internal("enabling debug does not effect output")
 	public boolean isDebugJava() {
 		return debugJava;
 	}
@@ -70,6 +77,7 @@ public class JavaOption {
 		this.debugJava = debugJava;
 	}
 
+	@Internal("changing debug port does not effect output")
 	public int getDebugPort() {
 		return debugPort;
 	}
@@ -82,6 +90,7 @@ public class JavaOption {
 		this.debugPort = Integer.valueOf(debugPort);
 	}
 
+	@Internal("enabling debug suspend does not effect output")
 	public boolean isDebugSuspend() {
 		return debugSuspend;
 	}

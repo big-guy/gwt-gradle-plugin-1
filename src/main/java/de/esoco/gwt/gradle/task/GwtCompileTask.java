@@ -14,42 +14,39 @@
  */
 package de.esoco.gwt.gradle.task;
 
+import com.google.common.base.Strings;
 import de.esoco.gwt.gradle.action.JavaAction;
 import de.esoco.gwt.gradle.extension.CompilerOption;
 import de.esoco.gwt.gradle.extension.GwtExtension;
 import de.esoco.gwt.gradle.helper.CompileCommandBuilder;
+import org.gradle.api.Project;
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.provider.ListProperty;
+import org.gradle.api.tasks.CacheableTask;
+import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.Nested;
+import org.gradle.api.tasks.OutputDirectory;
+import org.gradle.api.tasks.SkipWhenEmpty;
+import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskAction;
 
-import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import org.gradle.api.Action;
-import org.gradle.api.Project;
-import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.ProjectDependency;
-import org.gradle.api.file.ConfigurableFileCollection;
-import org.gradle.api.file.FileCollection;
-import org.gradle.api.internal.ConventionMapping;
-import org.gradle.api.internal.IConventionAware;
-import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginConvention;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFiles;
-import org.gradle.api.tasks.OutputDirectory;
-import org.gradle.api.tasks.SourceSet;
-import org.gradle.api.tasks.TaskAction;
-
-import com.google.common.base.Strings;
-
+@CacheableTask
 public class GwtCompileTask extends AbstractTask {
 
 	public static final String NAME = "gwtCompile";
 
-	private List<String> modules;
-	private File war;
-	private FileCollection src;
+	private final ListProperty<String> modules = getProject().getObjects().listProperty(String.class);
+	private final DirectoryProperty war = getProject().getObjects().directoryProperty();
+	private final ConfigurableFileCollection src = getProject().files();
 
 	public GwtCompileTask() {
 		setDescription("Compile the GWT modules");
@@ -59,16 +56,16 @@ public class GwtCompileTask extends AbstractTask {
 
 	@TaskAction
 	public void exec() {
-
 		GwtExtension extension = getProject().getExtensions().getByType(GwtExtension.class);
 		CompilerOption compilerOptions = extension.getCompile();
+		// TODO: This should be folded into the compiler option with Provider API
 		if (!Strings.isNullOrEmpty(extension.getSourceLevel()) &&
 			Strings.isNullOrEmpty(compilerOptions.getSourceLevel())) {
 			compilerOptions.setSourceLevel(extension.getSourceLevel());
 		}
 
 		CompileCommandBuilder commandBuilder = new CompileCommandBuilder();
-		commandBuilder.configure(getProject(), compilerOptions, getSrc(), getWar(), getModules());
+		commandBuilder.configure(compilerOptions, getSrc(), getWar().get().getAsFile(), getModules().get());
 		JavaAction compileAction = commandBuilder.buildJavaAction();
 		compileAction.execute(this);
 		compileAction.join();
@@ -81,52 +78,22 @@ public class GwtCompileTask extends AbstractTask {
 
 	public void configure(final Project project, final GwtExtension extension) {
 		final CompilerOption options = extension.getCompile();
-		options.init(project);
 		options.setLocalWorkers(evalWorkers(options));
 
-		final ConfigurableFileCollection sources = project.files();
-			addSourceSet(sources, project, SourceSet.MAIN_SOURCE_SET_NAME);
-
-		final Configuration compileClasspath = project.getConfigurations().getByName(
-			JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
-		compileClasspath.getAllDependencies().withType(ProjectDependency.class, new Action<ProjectDependency>() {
-			@Override
-			public void execute(ProjectDependency dep) {
-				addSourceSet(sources, dep.getDependencyProject(), SourceSet.MAIN_SOURCE_SET_NAME);
-			}
-		});
-
-		ConventionMapping mapping = ((IConventionAware) this).getConventionMapping();
-
-		mapping.map("modules", new Callable<List<String>>() {
+		modules.set(project.provider(new Callable<List<String>>() {
 			@Override
 			public List<String> call()  {
 				return extension.getModule();
 			}
-		});
-		mapping.map("war", new Callable<File>() {
-			@Override
-			public File call()  {
-				return options.getWar();
-			}
-		});
-		mapping.map("src", new Callable<FileCollection>() {
-			@Override
-			public FileCollection call()  {
-				return sources;
-			}
-		});
-	}
+		}));
+		war.set(options.getWar());
 
-	private void addSourceSet(ConfigurableFileCollection sources, Project project, String sourceSet) {
 		JavaPluginConvention javaConvention = project.getConvention().findPlugin(JavaPluginConvention.class);
-		
 		if (javaConvention != null) {
-			SourceSet mainSourceSet = javaConvention.getSourceSets().getByName(sourceSet);
-			sources
-				.from(project.files(mainSourceSet.getOutput().getResourcesDir()))
-				.from(project.files(mainSourceSet.getOutput().getClassesDirs()))
-				.from(project.files(mainSourceSet.getAllSource().getSrcDirs()));
+			SourceSet mainSourceSet = javaConvention.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+			src.from(project.files(mainSourceSet.getOutput().getResourcesDir()))
+					.from(project.files(mainSourceSet.getOutput().getClassesDirs()))
+					.from(project.files(mainSourceSet.getAllSource().getSrcDirs()));
 		}
 	}
 
@@ -149,17 +116,25 @@ public class GwtCompileTask extends AbstractTask {
 	}
 
 	@OutputDirectory
-	public File getWar() {
+	public DirectoryProperty getWar() {
 		return war;
 	}
 
 	@Input
-	public List<String> getModules() {
+	public ListProperty<String> getModules() {
 		return modules;
 	}
 
+	@SkipWhenEmpty
 	@InputFiles
-	public FileCollection getSrc() {
+	public ConfigurableFileCollection getSrc() {
 		return src;
+	}
+
+	@Nested
+	public CompilerOption getCompilerOptions() {
+		GwtExtension extension = getProject().getExtensions().getByType(GwtExtension.class);
+		CompilerOption compilerOptions = extension.getCompile();
+		return compilerOptions;
 	}
 }

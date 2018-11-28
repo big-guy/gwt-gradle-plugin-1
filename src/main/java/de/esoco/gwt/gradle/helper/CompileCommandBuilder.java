@@ -33,21 +33,17 @@ public class CompileCommandBuilder extends JavaCommandBuilder {
 		setMainClass("com.google.gwt.dev.Compiler");
 	}
 
-	public void configure(Project project, CompilerOption compilerOptions, FileCollection sources, File war,
-		Collection<String> modules) {
-		Configuration sdmConf = project.getConfigurations().getByName(GwtLibPlugin.CONF_GWT_SDK);
-		Configuration compileConf = project.getConfigurations().getByName(JavaPlugin.COMPILE_CLASSPATH_CONFIGURATION_NAME);
+	public void configure(CompilerOption compilerOptions, FileCollection sources, File war, Collection<String> modules) {
 
 		configureJavaArgs(compilerOptions);
-		addJavaArgs("-Dgwt.persistentunitcachedir=" + project.getBuildDir() + "/" + 
-		            GwtExtension.DIRECTORY + "/work/cache");
+		addJavaArgs("-Dgwt.persistentunitcachedir=" + new File(compilerOptions.getWorkDir(), "cache"));
 
 		for (File sourceDir : sources) {
 			addClassPath(sourceDir.getAbsolutePath());
 		}
 
-		addClassPath(compileConf.getAsPath());
-		addClassPath(sdmConf.getAsPath());
+		addClassPath(compilerOptions.getCompileClasspath().getAsPath());
+		addClassPath(compilerOptions.getGwtSdkClasspath().getAsPath());
 
 		addArg("-war", war);
 		addArg("-extra", compilerOptions.getExtra());

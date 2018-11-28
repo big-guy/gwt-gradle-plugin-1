@@ -17,11 +17,15 @@ package de.esoco.gwt.gradle.extension;
 import java.util.Arrays;
 import java.util.List;
 
+import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.util.ConfigureUtil;
 
 import com.google.common.collect.Lists;
 
 import groovy.lang.Closure;
+
+import javax.inject.Inject;
 
 public class GwtExtension {
 	
@@ -43,9 +47,14 @@ public class GwtExtension {
 	 */
 	private final List<String> module = Lists.newArrayList();
 
-	private CompilerOption compile = new CompilerOption();
+	private final CompilerOption compile;
 	private DevOption dev = new DevOption();
 	private JettyOption jetty = new JettyOption();
+
+	@Inject
+	public GwtExtension(ObjectFactory objectFactory, ProjectLayout projectLayout) {
+		this.compile = objectFactory.newInstance(CompilerOption.class, objectFactory, projectLayout);
+	}
 
 	public String getGwtVersion() {
 		return gwtVersion;
@@ -102,10 +111,6 @@ public class GwtExtension {
 
 	public CompilerOption getCompile() {
 		return compile;
-	}
-
-	public void setCompile(CompilerOption compile) {
-		this.compile = compile;
 	}
 
 	public GwtExtension compile(Closure<CompilerOption> c) {

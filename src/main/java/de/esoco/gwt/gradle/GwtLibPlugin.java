@@ -19,6 +19,7 @@ import de.esoco.gwt.gradle.extension.GwtExtension;
 import org.gradle.api.Action;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.file.FileCollection;
@@ -26,6 +27,7 @@ import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.plugins.MavenPlugin;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.plugins.ide.eclipse.model.EclipseModel;
@@ -48,12 +50,21 @@ public class GwtLibPlugin implements Plugin<Project> {
 		project.getPlugins().apply(MavenPlugin.class);
 
 		final GwtExtension extension = project.getExtensions().create(GwtExtension.NAME,
-			GwtExtension.class);
+			GwtExtension.class, project.getObjects(), project.getLayout());
 
 		ConfigurationContainer configurationContainer = project.getConfigurations();
-		
-		configurationContainer.create(CONF_GWT_SDK).setVisible(false);
-		configurationContainer.create(CONF_JETTY).setVisible(false);
+
+		Configuration gwtSdkConfiguration = configurationContainer.create(CONF_GWT_SDK);
+		gwtSdkConfiguration.setVisible(false);
+
+		extension.getCompile().getGwtSdkClasspath().from(gwtSdkConfiguration);
+
+		SourceSetContainer sourceSets = project.getExtensions().getByType(SourceSetContainer.class);
+		SourceSet main = sourceSets.getByName("main");
+		extension.getCompile().getCompileClasspath().from(main.getCompileClasspath());
+
+		Configuration jettyConfiguration = configurationContainer.create(CONF_JETTY);
+		jettyConfiguration.setVisible(false);
 
 		includeSourcesToJar(project);
 
